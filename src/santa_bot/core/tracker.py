@@ -1,5 +1,6 @@
 import math
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 """
 Find distance between two points using Haversine Formula:
@@ -62,3 +63,97 @@ def find_nearest_stop(
             nearest_stop["distance_from_user_km"] = round(distance, 2)
 
     return nearest_stop
+
+
+"""
+Pretty print minutes
+"""
+
+
+def prettify(minutes: int) -> str:
+    if minutes < 60:
+        return f"{minutes} minutes"
+
+    hours = minutes // 60
+    minutes = minutes % 6
+
+    if hours < 24:
+        return f"{hours}h {minutes}"
+
+    days = hours // 24
+    hours = hours % 24
+
+    return f"{days}d {hours}h {minutes}m"
+
+
+"""
+Determines Santa's status based on a specific time.
+"""
+
+
+def get_santa_status(
+    route: List[Dict[str, Any]], current_time_ms: Optional[float] = None
+) -> Tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    if current_time_ms is None:
+        current_time_ms = time.time() * 1000
+
+    msg = ""
+
+    # Find current status
+    start_point = route[0]
+    end_point = route[-1]
+
+    # Before Christmas
+    if current_time_ms < start_point["departure"]:
+        time_diff = start_point["departure"] - current_time_ms
+        minutes_left = int(time_diff / 1000 / 60)
+        time_str = prettify(minutes_left)  # TODO: pretty print this
+
+        msg = (
+            f"🎅🏻 **Santa is at the North Pole!** 🏠\n\n"
+            f"He is currently preparing the sleigh and feeding the reindeer.\n"
+            f"🚀 **Takeoff in:** {time_str}"
+        )
+        return msg, start_point, route[1]
+
+    # After Christmas
+    if current_time_ms > end_point["arrival"]:
+        msg = "🎅🏻**Santa has returned to the North Pole!** 😴\n\nChristmas is over for this year. See you next time!"
+        return msg, start_point, None
+
+    # Active Scenario
+    current_stop = None
+    next_stop = None
+    for i, stop in enumerate(route):
+        arrival = stop["arrival"]
+        departure = stop["departure"]
+
+        # Santa is AT this stop
+        if arrival <= current_time_ms <= departure:
+            current_stop = stop
+            next_stop = route[i + 1] if i + 1 < len(route) else None
+            # Build message
+            msg = (
+                f"🎅🏻 **Santa is currently visiting {current_stop['city']}!** \n\n"
+                f"He is delivering presents right now in {current_stop['region']}. 🎁"
+            )
+            return msg, current_stop, next_stop
+        # Santa has passed, but has not reached the next
+        if current_time_ms < arrival:
+            next_stop = stop
+            current_stop = route[i - 1] if i > 0 else None
+
+            minutes_left = int((next_stop["arrival"] - current_time_ms) / 1000 / 60)
+
+            # Edge case: in the air before the first stop
+            origin = current_stop["city"] if current_stop else "the North Pole"
+
+            # Build message
+            msg = (
+                f"🎅🏻 **Santa is in the air!** 🛷\n\n"
+                f"He has just left **{origin}**.\n"
+                f"He is heading to **{next_stop['city']}** and will land in {minutes_left} minutes!"
+            )
+            return msg, current_stop, next_stop
+
+    return "Santa is currently resting at the North Pole! ❄️", None, None
