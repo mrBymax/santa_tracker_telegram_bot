@@ -60,4 +60,4 @@ def test_santa_finished_route():
 
     msg, current, next_s = get_santa_status(route, current_time_ms=fake_now)
 
-    assert "resting" in msg
+    assert "Christmas is over" in msg
