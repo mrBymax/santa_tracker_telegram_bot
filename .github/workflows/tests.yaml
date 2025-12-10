@@ -1,0 +1,32 @@
+name: Run Tests on Push
+
+on: [push]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up uv
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # 3. Set up Python environment
+      - name: Set up Python
+        run: uv python install
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      # 5. Run tests
+      - name: Run tests
+        run: |
+          uv run pytest tests
