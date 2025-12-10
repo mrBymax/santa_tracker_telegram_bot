@@ -1,0 +1,7 @@
+[project]
+name = "santa-tracker"
+version = "0.1.0"
+description = "A simple bot to track Santa's location"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
