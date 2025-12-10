@@ -57,13 +57,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_santa_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     route = api.get_route()
-    msg, _, _ = get_santa_status(route)
+    msg, current, next_stop = get_santa_status(route)
+
+    photo_url = None
+
+    # If Santa's at the city, use the city photo
+    if current and "details" in current and current["details"]["photos"]:
+        photo_url = current["details"]["photos"][0]["url"]
+
+    # If it's flying return the destination photo
+    elif next_stop and "details" in next_stop and next_stop["details"]["photos"]:
+        photo_url = next_stop["details"]["photos"][0]["url"]
 
     if not update.effective_chat:
         return
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text=msg, parse_mode="Markdown"
-    )
+
+    if photo_url:
+        try:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=photo_url,
+                caption=msg,
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            print(f"Error sending photo {e}")
+            # Fallback to default
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text=msg, parse_mode="Markdown"
+            )
+    else:
+        # No photo found, just send text
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=msg, parse_mode="Markdown"
+        )
 
 
 def run_bot():
