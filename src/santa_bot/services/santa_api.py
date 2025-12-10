@@ -69,17 +69,3 @@ class SantaAPI:
         except ValueError:
             new_dt = dt.replace(year=dt.year + year_offset, day=28)
         return int(new_dt.timestamp() * 1000)
-
-
-if __name__ == "__main__":
-    try:
-        api = SantaAPI()
-        route = api.get_route()
-        print(f"Successfully loaded {len(route)} stops")
-        if route:
-            print(
-                f"First stop time adjusted to: {datetime.datetime.fromtimestamp(route[0]['departure'] / 1000)}"
-            )
-
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
