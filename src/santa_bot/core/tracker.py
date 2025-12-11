@@ -157,3 +157,50 @@ def get_santa_status(
             return msg, current_stop, next_stop
 
     return "Santa is currently resting at the North Pole! ❄️", None, None
+
+
+"""
+Returns the arrival time in a custom city.
+If the city is in the dataset, return the timestamp from the dataset,
+else, use interpolate previous and next stop
+"""
+
+
+def calculate_arrival_time(
+    user_lat: float, user_lon: float, route: List[Dict[str, Any]]
+) -> Optional[float]:
+    if not route or len(route) < 2:
+        return None
+
+    best_arrival_time = None
+    min_detour = float("inf")  # for the cities that are not in the dataset
+
+    # Iterate through all segments
+    for i in range(len(route) - 1):
+        stop_a = route[i]
+        stop_b = route[i + 1]
+
+        # Coordinates
+        lat_a, lon_a = stop_a["location"]["lat"], stop_a["location"]["lng"]
+        lat_b, lon_b = stop_b["location"]["lat"], stop_b["location"]["lng"]
+
+        # Distances
+        dist_a_b = calculate_distance(lat_a, lon_a, lat_b, lon_b)
+        dist_a_user = calculate_distance(lat_a, lon_a, user_lat, user_lon)
+        dist_user_b = calculate_distance(user_lat, user_lon, lat_b, lon_b)
+
+        # Detour is how much extra distance is added by visiting the user
+        detour = (dist_a_user + dist_user_b) - dist_a_b
+
+        if detour < min_detour:
+            min_detour = detour
+
+            # Assuming constant velocity
+            fraction = dist_a_user / (dist_a_user + dist_user_b)
+            dep_a = stop_a["departure"]
+            arr_b = stop_b["arrival"]
+            duration = arr_b - dep_a
+
+            best_arrival_time = dep_a + (duration * fraction)
+
+    return best_arrival_time
