@@ -27,6 +27,7 @@ Project configuration
 api = SantaAPI()
 route_data = api.get_route()
 geolocator = Nominatim(user_agent="whereissanta")
+seen_users = set()
 
 """
 Logger configuration
@@ -50,11 +51,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_name = update.effective_user.first_name
-    # user_location_btn = KeyboardButton(
-    #     "📍Notify Me when Santa is here", request_location=True
-    # )
+    user_id = update.effective_user.id
+
+    if user_id not in seen_users:
+        seen_users.add(user_id)
+        logging.info(f"New user: {user_name} ({user_id})")
     status_btn = KeyboardButton(santa_location_btn)
-    # custom_city = KeyboardButton(custom_city_btn)
 
     reply_markup = ReplyKeyboardMarkup(
         [[status_btn]],
@@ -70,6 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+# Handle Santa's current location
 async def handle_santa_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     route = api.get_route()
     msg, current, next_stop = get_santa_status(route)
@@ -127,6 +130,7 @@ async def send_custom_alert(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# Set custom city notification
 async def set_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat:
         return
@@ -205,6 +209,11 @@ async def set_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
             current_time_s = time.time()
             delay = eta_s - current_time_s
 
+            if target_city not in notification_sub:
+                notification_sub[target_city] = []
+            if user_id not in notification_sub[target_city]:
+                notification_sub[target_city].append(user_id)
+
             if delay > 0 and context.job_queue:
                 # Schedule the alert
                 context.job_queue.run_once(
@@ -219,7 +228,7 @@ async def set_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=(
-                        f"🎅 I've calculated Santa's flight path!\n"
+                        f"🎅🏻 I've calculated Santa's flight path!\n"
                         f"He should be passing over **{target_city}** around **{time_str}**.\n\n"
                         f"✅ I've set a custom alarm for you at that exact time!"
                     ),
@@ -229,12 +238,68 @@ async def set_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text=f"🎅 Santa has already passed {target_city} this year!",
+                    text=f"🎅🏻 Santa has already passed {target_city} this year!",
                 )
                 return
         # Fallback: nearest stop
     except Exception as e:
         print(f"Error: {e}")
+
+
+# Return some statistics about this bot and Santa's journey
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat:
+        return
+
+    user_id = update.effective_chat.id
+
+    # Global stats (user count, most popular city and total alerts)
+    user_count = len(seen_users)
+    total_alerts = len(notification_sub)
+    total_active_alerts = sum(len(users) for users in notification_sub.values())
+
+    # most popular city
+    if notification_sub:
+        top_count = max(len(users) for users in notification_sub.values())
+
+        most_popular_cities = [
+            city for city, users in notification_sub.items() if len(users) == top_count
+        ]
+
+        label = "Top Cities" if len(most_popular_cities) > 1 else "Top City"
+        most_popular_city = f"🏆 **{label}:** {', '.join(sorted(most_popular_cities))} ({top_count} users)"
+    else:
+        most_popular_city = "🏆 **Top City:** None yet!"
+
+    # User specific stats (cities subscribed, active alerts)
+    user_city = [
+        city for city, subscribers in notification_sub.items() if user_id in subscribers
+    ]
+
+    social_msg = ""
+    if user_city:
+        for city in user_city:
+            others_count = len(notification_sub[city]) - 1
+            if others_count > 0:
+                social_msg += f"\n🎅🏻 Oh! Oh! Oh! Looks like **you and {others_count} others** are interested in Santa's path to **{city}**!"
+            else:
+                social_msg += f"\n🎅🏻 You are the **first one** waiting for Santa in **{city}**! Tell your friends!"
+    else:
+        social_msg = "\nYou aren't tracking any specific cities yet. Use `/notify <city>` to join!\n"
+
+    report = (
+        f"📊 **@where\\_is\\_santa\\_bot -- Real-Time Stats**\n"  # Note: '_' must be escaped in Markdown parse mode
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👥 **Total Trackers:** {user_count}\n"
+        f"🌍 **Cities Watched:** {total_alerts}\n"
+        f"🔔 **Active Alerts:** {total_active_alerts}\n"
+        f"{most_popular_city}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{social_msg}"
+    )
+
+    await context.bot.send_message(chat_id=user_id, text=report, parse_mode="Markdown")
+    return
 
 
 def run_bot():
@@ -250,6 +315,7 @@ def run_bot():
         MessageHandler(filters.Text([santa_location_btn]), handle_santa_location)
     )
     application.add_handler(CommandHandler("notify", set_notification))
+    application.add_handler(CommandHandler("stats", stats))
 
     print("Santa Bot is running...")
     application.run_polling()
