@@ -17,6 +17,7 @@ from settings import BOT_TOKEN
 
 # Telegram library components
 from telegram import (
+    BotCommand,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
@@ -368,13 +369,48 @@ async def share_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Show help information.
+    Warning: This command should be manually updated each time a new command is added.
+    """
+    if not update.effective_chat:
+        return
+
+    help_text = (
+        "🎄Oh Oh Oh! Here are the available commands:\n\n"
+        "/start - Start the bot\n"
+        "/list - List of the cities you're tracking\n"
+        "/stats - Show statistics\n"
+        "/notify - Set notification for a specific city\n"
+        "/help - Show help (this menu)"
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=help_text,
+        parse_mode="HTML",
+    )
+
+
+async def post_init(application):
+    commands = [
+        BotCommand("start", "Start the bot"),
+        BotCommand("list", "List subscriptions"),
+        BotCommand("stats", "Show statistics"),
+        BotCommand("notify", "Set notification"),
+        BotCommand("help", "Show help"),
+    ]
+
+    await application.bot.set_my_commands(commands)
+
+
 def run_bot():
     """Entry point to start the bot."""
     if not BOT_TOKEN:
         print("Error: BOT_TOKEN is missing in settings.py or .env")
         return
 
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(
@@ -386,6 +422,7 @@ def run_bot():
     application.add_handler(
         MessageHandler(filters.Regex(f"^{share_btn_text}$"), share_bot)
     )
+    application.add_handler(CommandHandler("help", help_command))
 
     print("Santa Bot is running...")
     application.run_polling()
