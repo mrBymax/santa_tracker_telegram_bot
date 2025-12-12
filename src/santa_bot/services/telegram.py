@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import time
+import urllib.parse
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, Optional, cast
 
 from core.tracker import calculate_arrival_time, get_santa_status
 
@@ -14,7 +15,13 @@ from geopy.location import Location
 from settings import BOT_TOKEN
 
 # Telegram library components
-from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    Update,
+)
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 from telegram.ext._handlers.commandhandler import CommandHandler
 
@@ -43,6 +50,7 @@ notification_sub = {}  # Format: { "city" : [user_id] }
 
 # When pressed, sends Santa current location
 santa_location_btn = "🎅🏻 Where is Santa now?"
+share_btn_text = "🎁 Share this bot with Friends"
 custom_city_btn = "🌍 Notify Me when Santa is in [CITY]"
 
 
@@ -56,10 +64,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in seen_users:
         seen_users.add(user_id)
         logging.info(f"New user: {user_name} ({user_id})")
+
     status_btn = KeyboardButton(santa_location_btn)
+    share_btn = KeyboardButton(share_btn_text)
 
     reply_markup = ReplyKeyboardMarkup(
-        [[status_btn]],
+        [[status_btn], [share_btn]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -302,6 +312,32 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return
 
 
+async def share_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat:
+        return
+
+    bot_username = context.bot.username
+
+    share_text = (
+        "Ho Ho Ho! 🎅🏻 I'm tracking Santa Claus in real-time! Check it out here:"
+    )
+    share_url = f"https://t.me/{bot_username}?start=ref_friend"
+
+    safe_text = urllib.parse.quote(share_text)
+    safe_url = urllib.parse.quote(share_url)
+
+    telegram_share_link = f"https://t.me/share/url?url={safe_url}&text={safe_text}"
+    inline_btn = InlineKeyboardButton("📤 Send to Contacts", url=telegram_share_link)
+    reply_markup = InlineKeyboardMarkup([[inline_btn]])
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Spread the holiday cheer! 🎄\nClick the button below to share the bot with your friends and family.",
+        reply_markup=reply_markup,
+        parse_mode="HTML",
+    )
+
+
 def run_bot():
     """Entry point to start the bot."""
     if not BOT_TOKEN:
@@ -316,6 +352,9 @@ def run_bot():
     )
     application.add_handler(CommandHandler("notify", set_notification))
     application.add_handler(CommandHandler("stats", stats))
+    application.add_handler(
+        MessageHandler(filters.Regex(f"^{share_btn_text}$"), share_bot)
+    )
 
     print("Santa Bot is running...")
     application.run_polling()
