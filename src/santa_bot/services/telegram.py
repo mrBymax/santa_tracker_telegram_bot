@@ -3,6 +3,7 @@ import logging
 import time
 import urllib.parse
 from datetime import datetime
+from re import U
 from typing import Any, Dict, Optional, cast
 
 from core.tracker import calculate_arrival_time, get_santa_status
@@ -256,6 +257,35 @@ async def set_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error: {e}")
 
 
+async def list_subscriptions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat:
+        return
+
+    user_id = update.effective_chat.id
+
+    # List subscriptions for the user
+    user_subs = [city for city, sub in notification_sub.items() if user_id in sub]
+
+    if not user_subs:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="🔕 You have no active subscriptions.\nUse `/notify <city>` to add one!",
+            parse_mode="Markdown",
+        )
+        return
+
+    user_subs.sort()
+
+    msg = "🔔 Your active subscriptions:\n"
+    msg += "\n".join(f"- {city}" for city in user_subs)
+
+    await context.bot.send_message(
+        chat_id=user_id,
+        text=msg,
+        parse_mode="Markdown",
+    )
+
+
 # Return some statistics about this bot and Santa's journey
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat:
@@ -351,6 +381,7 @@ def run_bot():
         MessageHandler(filters.Text([santa_location_btn]), handle_santa_location)
     )
     application.add_handler(CommandHandler("notify", set_notification))
+    application.add_handler(CommandHandler("list", list_subscriptions))
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(
         MessageHandler(filters.Regex(f"^{share_btn_text}$"), share_bot)
