@@ -1,13 +1,14 @@
 import datetime
 import json
-from pathlib import Path
 from typing import Any, Dict, List
+
+from settings import BASE_DIR
 
 
 class SantaAPI:
     def __init__(self, data_file_name: str = "santa_en.json"):
         self._route_cache = None
-        self.data_path = Path(__file__).resolve().parents[3] / "data" / data_file_name
+        self.data_path = BASE_DIR / "data" / data_file_name
 
     """
     Loads the route data from the specified file and normalises the timestamps

@@ -75,7 +75,7 @@ def prettify(minutes: int) -> str:
         return f"{minutes} minutes"
 
     hours = minutes // 60
-    minutes = minutes % 6
+    minutes = minutes % 60
 
     if hours < 24:
         return f"{hours}h {minutes}"

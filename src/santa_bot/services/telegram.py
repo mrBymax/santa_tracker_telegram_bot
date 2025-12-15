@@ -3,7 +3,6 @@ import logging
 import time
 import urllib.parse
 from datetime import datetime
-from re import U
 from typing import Any, Dict, Optional, cast
 
 from core.tracker import calculate_arrival_time, get_santa_status
@@ -384,6 +383,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/stats - Show statistics\n"
         "/notify - Set notification for a specific city\n"
         "/help - Show help (this menu)"
+        "/share - Share the bot with your friends and family"
     )
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -399,6 +399,7 @@ async def post_init(application):
         BotCommand("stats", "Show statistics"),
         BotCommand("notify", "Set notification"),
         BotCommand("help", "Show help"),
+        BotCommand("share", "Share the bot with your friends and family"),
     ]
 
     await application.bot.set_my_commands(commands)
