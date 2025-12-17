@@ -5,14 +5,9 @@ import urllib.parse
 from datetime import datetime
 from typing import Any, Dict, Optional, cast
 
-from core.tracker import calculate_arrival_time, get_santa_status
-
 # Geopy
 from geopy.geocoders import Nominatim
 from geopy.location import Location
-
-# Settings
-from settings import BOT_TOKEN
 
 # Telegram library components
 from telegram import (
@@ -25,6 +20,11 @@ from telegram import (
 )
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 from telegram.ext._handlers.commandhandler import CommandHandler
+
+from src.santa_bot.core.tracker import calculate_arrival_time, get_santa_status
+
+# Settings
+from src.santa_bot.settings import BOT_TOKEN
 
 # SantaBot components
 from .santa_api import SantaAPI
@@ -286,6 +286,40 @@ async def list_subscriptions(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat:
+        return
+
+    user_id = update.effective_chat.id
+
+    if context.args is None or len(context.args) == 0:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="You need to specify a city to unsubscribe from.\nUsage: `/unsubscribe <city>`",
+            parse_mode="Markdown",
+        )
+        return
+
+    target_city = " ".join(context.args).title()
+
+    if target_city in notification_sub and user_id in notification_sub[target_city]:
+        notification_sub[target_city].remove(user_id)
+        if not notification_sub[target_city]:
+            del notification_sub[target_city]
+
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"✅ You have unsubscribed from **{target_city}**.",
+            parse_mode="Markdown",
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"You are not subscribed to **{target_city}**.",
+            parse_mode="Markdown",
+        )
+
+
 # Return some statistics about this bot and Santa's journey
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat:
@@ -382,6 +416,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/list - List of the cities you're tracking\n"
         "/stats - Show statistics\n"
         "/notify - Set notification for a specific city\n"
+        "/unsubscribe - Unsubscribe from a city\n"
         "/help - Show help (this menu)"
         "/share - Share the bot with your friends and family"
     )
@@ -398,6 +433,7 @@ async def post_init(application):
         BotCommand("list", "List subscriptions"),
         BotCommand("stats", "Show statistics"),
         BotCommand("notify", "Set notification"),
+        BotCommand("unsubscribe", "Unsubscribe from a city"),
         BotCommand("help", "Show help"),
         BotCommand("share", "Share the bot with your friends and family"),
     ]
@@ -418,6 +454,7 @@ def run_bot():
         MessageHandler(filters.Text([santa_location_btn]), handle_santa_location)
     )
     application.add_handler(CommandHandler("notify", set_notification))
+    application.add_handler(CommandHandler("unsubscribe", unsubscribe))
     application.add_handler(CommandHandler("list", list_subscriptions))
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(
