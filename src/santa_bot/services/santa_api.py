@@ -2,7 +2,7 @@ import datetime
 import json
 from typing import Any, Dict, List
 
-from src.santa_bot.settings import BASE_DIR
+from settings import BASE_DIR
 
 
 class SantaAPI:

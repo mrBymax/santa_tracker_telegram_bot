@@ -5,9 +5,14 @@ import urllib.parse
 from datetime import datetime
 from typing import Any, Dict, Optional, cast
 
+from core.tracker import calculate_arrival_time, get_santa_status
+
 # Geopy
 from geopy.geocoders import Nominatim
 from geopy.location import Location
+
+# Settings
+from settings import BOT_TOKEN
 
 # Telegram library components
 from telegram import (
@@ -20,11 +25,6 @@ from telegram import (
 )
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 from telegram.ext._handlers.commandhandler import CommandHandler
-
-from src.santa_bot.core.tracker import calculate_arrival_time, get_santa_status
-
-# Settings
-from src.santa_bot.settings import BOT_TOKEN
 
 # SantaBot components
 from .santa_api import SantaAPI
